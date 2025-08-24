@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <stdexcept>
 
+class HttpRequestTest;
+
 namespace curl_async_executor
 {
 
@@ -17,7 +19,8 @@ enum HttpMethod
 // owns Curl handle, constructed with builder, move only so executor can take control of lifecycle of handle
 class HttpRequest
 {
-    friend class HttpRequestBuilder;
+friend class HttpRequestBuilder;
+friend class ::HttpRequestTest;
 public:
     HttpRequest(const HttpRequest& other) = delete;
     HttpRequest& operator=(const HttpRequest& other) = delete;
@@ -63,14 +66,15 @@ private:
 
 class HttpRequestBuilder
 {
+friend class ::HttpRequestTest;
 public:
     HttpRequestBuilder()
-    : request()
+    : request_()
     {};
 
-    HttpRequestBuilder&& setUrl(std::string url);
-    HttpRequestBuilder&& setMethod(HttpMethod method);
-    HttpRequestBuilder&& addHeader(std::string key, std::string value);
+    HttpRequestBuilder&& set_url(std::string url);
+    HttpRequestBuilder&& set_method(HttpMethod method);
+    HttpRequestBuilder&& add_header(std::string key, std::string value);
     HttpRequest build() &&;
 
     HttpRequestBuilder(const HttpRequestBuilder& other) = delete;
@@ -80,7 +84,7 @@ public:
     ~HttpRequestBuilder() = default;
 
 private:
-    HttpRequest request;
+    HttpRequest request_;
 };
 
 } // namespace curl_async_executor

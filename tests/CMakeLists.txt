@@ -22,7 +22,7 @@ add_executable(curl_tests)
 
 target_sources(curl_tests
     PRIVATE
-        test.cpp
+        HttpRequestTest.cpp
 )
 
 target_link_libraries(curl_tests
