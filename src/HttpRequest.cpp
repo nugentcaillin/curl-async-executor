@@ -1,5 +1,6 @@
 #include "curl-async-executor/HttpRequest.hpp"
 
+#include <iostream>
 namespace curl_async_executor
 {
 
@@ -11,9 +12,16 @@ HttpRequestBuilder&& HttpRequestBuilder::set_url(const std::string& url)
     return std::move(*this);
 }
 
-HttpRequestBuilder&& HttpRequestBuilder::set_method(const HttpMethod& method)
+HttpRequestBuilder&& HttpRequestBuilder::set_method(HttpMethod method)
 {
-    (void)method;
+    method_ = method;
+    return std::move(*this);
+}
+
+
+HttpRequestBuilder&& HttpRequestBuilder::set_body(std::string body)
+{
+    request_.body_ = std::move(body);
     return std::move(*this);
 }
 
@@ -26,8 +34,20 @@ HttpRequestBuilder&& HttpRequestBuilder::add_header(const std::string& key, cons
     return std::move(*this);
 }
 
+// deal with method specific logic, return finished HttpRequest
 HttpRequest HttpRequestBuilder::build() &&
 {
+    switch (method_)
+    {
+    case HttpMethod::GET:        
+        curl_easy_setopt(request_.handle_, CURLOPT_HTTPGET, 1L);
+        break;
+    case HttpMethod::POST:
+        curl_easy_setopt(request_.handle_, CURLOPT_POST, 1L);
+        curl_easy_setopt(request_.handle_, CURLOPT_POSTFIELDS, request_.body_.c_str());
+        curl_easy_setopt(request_.handle_, CURLOPT_POSTFIELDSIZE, request_.body_.length());
+        break;
+    }
     return std::move(request_);
 }
 

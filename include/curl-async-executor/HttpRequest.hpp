@@ -28,9 +28,11 @@ public:
     HttpRequest(HttpRequest&& other)
     : handle_(nullptr)
     , headers_(nullptr)
+    , body_()
     {
         std::swap(handle_, other.handle_);
         std::swap(headers_, other.headers_);
+        std::swap(body_, other.body_);
     }
 
     HttpRequest& operator=(HttpRequest&& other)
@@ -40,9 +42,11 @@ public:
         if (handle_) curl_easy_cleanup(handle_);
         headers_ = nullptr;
         handle_ = nullptr;
+        body_ = "";
 
         std::swap(headers_, other.headers_);
         std::swap(handle_, other.handle_);
+        std::swap(body_, other.body_);
 
         return *this;
     }
@@ -55,10 +59,12 @@ public:
 private:
     CURL* handle_;
     struct curl_slist *headers_;
+    std::string body_;
 
     HttpRequest()
     : handle_(curl_easy_init())
     , headers_(nullptr)
+    , body_()
     {
         if (!handle_) throw std::runtime_error("Unable to create curl easy handle"); 
     };
@@ -70,10 +76,12 @@ friend class ::HttpRequestTest;
 public:
     HttpRequestBuilder()
     : request_()
+    , method_(HttpMethod::GET)
     {};
 
     HttpRequestBuilder&& set_url(const std::string& url);
-    HttpRequestBuilder&& set_method(const HttpMethod& method);
+    HttpRequestBuilder&& set_method(HttpMethod method);
+    HttpRequestBuilder&& set_body(std::string body);
     HttpRequestBuilder&& add_header(const std::string& key, const std::string& value);
     HttpRequest build() &&;
 
@@ -85,6 +93,7 @@ public:
 
 private:
     HttpRequest request_;
+    HttpMethod method_;
 };
 
 } // namespace curl_async_executor

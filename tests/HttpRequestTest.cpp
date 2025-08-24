@@ -2,6 +2,8 @@
 #include <curl-async-executor/HttpRequest.hpp>
 #include <curl/curl.h>
 
+#include <iostream>
+
 using namespace curl_async_executor;
 
 class HttpRequestTest : public testing::Test
@@ -15,6 +17,10 @@ public:
     {
         return req.handle_;
     }
+    const std::string& body_helper(const HttpRequest& req)
+    {
+        return req.body_;
+    }
 };
 
 TEST_F(HttpRequestTest, headersNotNullAfterAddHeader)
@@ -24,6 +30,15 @@ TEST_F(HttpRequestTest, headersNotNullAfterAddHeader)
                         .build();
     EXPECT_NE(header_helper(req), nullptr);
 }
+TEST_F(HttpRequestTest, bodyNotNullAfterSetting)
+{
+    HttpRequest req = HttpRequestBuilder()
+                        .set_body("Test body!")
+                        .build();
+    
+    EXPECT_EQ(body_helper(req), "Test body!");
+}
+
 
 TEST_F(HttpRequestTest, setsUrlCorrectly)
 {
@@ -54,9 +69,18 @@ TEST_F(HttpRequestTest, nonConstructedRequestFreesCorrectly)
 
 
 // test passes if no leaks detected
-TEST_F(HttpRequestTest, requestFreesCorrectlyWithoutHeaders)
+TEST_F(HttpRequestTest, requestFreesCorrectlyWithoutHeadersOrBody)
 {
     HttpRequest req = HttpRequestBuilder()
+                        .build();
+}
+
+
+// test passes if no leaks detected
+TEST_F(HttpRequestTest, requestFreesCorrectlyWithBody)
+{
+    HttpRequest req = HttpRequestBuilder()
+                        .set_body("Test body!")
                         .build();
 }
 
