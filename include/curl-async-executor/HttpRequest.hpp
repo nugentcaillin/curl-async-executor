@@ -72,9 +72,9 @@ public:
     : request_()
     {};
 
-    HttpRequestBuilder&& set_url(std::string url);
-    HttpRequestBuilder&& set_method(HttpMethod method);
-    HttpRequestBuilder&& add_header(std::string key, std::string value);
+    HttpRequestBuilder&& set_url(const std::string& url);
+    HttpRequestBuilder&& set_method(const HttpMethod& method);
+    HttpRequestBuilder&& add_header(const std::string& key, const std::string& value);
     HttpRequest build() &&;
 
     HttpRequestBuilder(const HttpRequestBuilder& other) = delete;

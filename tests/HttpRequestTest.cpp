@@ -32,13 +32,13 @@ TEST_F(HttpRequestTest, setsUrlCorrectly)
                         .build();
     char *url {nullptr};
     curl_easy_getinfo(handle_helper(req), CURLINFO_EFFECTIVE_URL, &url);
-    std::string set_url(url);
     ASSERT_NE(url, nullptr);
+    std::string set_url(url);
     EXPECT_EQ(set_url, "https://localhost/dummy");
 }
 
 // test passes if no leaks detected
-TEST_F(HttpRequestTest, requestFreesCorrectly)
+TEST_F(HttpRequestTest, requestFreesCorrectlyWithHeaders)
 {
     HttpRequest req = HttpRequestBuilder()
                         .add_header("Foo", "bar")
@@ -52,7 +52,16 @@ TEST_F(HttpRequestTest, nonConstructedRequestFreesCorrectly)
     builder.add_header("foo", "bar");
 }
 
-TEST_F(HttpRequestTest, moveSemanticsCorrect)
+
+// test passes if no leaks detected
+TEST_F(HttpRequestTest, requestFreesCorrectlyWithoutHeaders)
+{
+    HttpRequest req = HttpRequestBuilder()
+                        .build();
+}
+
+
+TEST_F(HttpRequestTest, moveSemanticsCorrectWithHeader)
 {
     HttpRequest req1 = HttpRequestBuilder()
                         .add_header("foo", "bar")
@@ -62,4 +71,16 @@ TEST_F(HttpRequestTest, moveSemanticsCorrect)
     EXPECT_EQ(header_helper(req1), nullptr);
     EXPECT_NE(handle_helper(req2), nullptr);
     EXPECT_NE(header_helper(req2), nullptr);
+}
+
+
+TEST_F(HttpRequestTest, moveSemanticsCorrectWithoutHeader)
+{
+    HttpRequest req1 = HttpRequestBuilder()
+                        .build();
+    HttpRequest req2 = std::move(req1);
+    EXPECT_EQ(handle_helper(req1), nullptr);
+    EXPECT_EQ(header_helper(req1), nullptr);
+    EXPECT_NE(handle_helper(req2), nullptr);
+    EXPECT_EQ(header_helper(req2), nullptr);
 }
