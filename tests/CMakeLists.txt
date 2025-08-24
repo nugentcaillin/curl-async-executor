@@ -18,21 +18,21 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
-add_executable(tests)
+add_executable(curl_tests)
 
-target_sources(tests
+target_sources(curl_tests
     PRIVATE
         test.cpp
 )
 
-target_link_libraries(tests
+target_link_libraries(curl_tests
     PRIVATE
         ProjectName
         GTest::gtest_main
 )
 
-CONFIGURE_TARGET(tests)
+CONFIGURE_TARGET(curl_tests)
 
 
 include(GoogleTest)
-gtest_discover_tests(tests)
+gtest_discover_tests(curl_tests)

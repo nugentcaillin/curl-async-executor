@@ -18,6 +18,28 @@ endif()
 project(ProjectName)
 add_library(${PROJECT_NAME} STATIC)
 
+
+include(FetchContent)
+FetchContent_Declare(
+    CoroExecutor
+    GIT_REPOSITORY https://github.com/nugentcaillin/CoroExecutor.git
+    GIT_TAG 4998274c7377247ae96196c70ffbd21a02baf7e7 # v1.0.0
+)
+
+FetchContent_MakeAvailable(CoroExecutor)
+
+find_package(CURL REQUIRED)
+
+
+
+target_link_libraries(${PROJECT_NAME} 
+    PRIVATE 
+        CoroExecutor
+        CURL::libcurl
+)
+
+
+
 # compile options
 function(CONFIGURE_TARGET TARGET_NAME)
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -42,7 +64,7 @@ target_include_directories(${PROJECT_NAME}
 
 target_sources(${PROJECT_NAME}
     PRIVATE
-    src/test.cpp
+    src/HttpExecutor.cpp
 )
 
 
