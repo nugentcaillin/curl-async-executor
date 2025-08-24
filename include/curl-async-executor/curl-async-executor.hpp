@@ -72,10 +72,10 @@ public:
     : request()
     {};
 
-    HttpRequestBuilder& setUrl(std::string url);
-    HttpRequestBuilder& setMethod(HttpMethod method);
-    HttpRequestBuilder& addHeader(std::string key, std::string value);
-    HttpRequest build();
+    HttpRequestBuilder&& setUrl(std::string url);
+    HttpRequestBuilder&& setMethod(HttpMethod method);
+    HttpRequestBuilder&& addHeader(std::string key, std::string value);
+    HttpRequest build() &&;
 
     HttpRequestBuilder(const HttpRequestBuilder& other) = delete;
     HttpRequestBuilder& operator=(const HttpRequestBuilder& other) = delete;
