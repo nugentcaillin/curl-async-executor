@@ -1,6 +1,12 @@
 # About
 # Installation
 
+## Dependencies
+This library depends on libcurl being installed on the system, this can be done with
+```console
+sudo apt-get install -y libcurl4-openssl-dev
+```
+
 This library can be made available using FetchContent as follows in your CMakeLists.txt
 
 ```console
