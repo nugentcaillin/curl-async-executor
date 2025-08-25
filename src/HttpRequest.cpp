@@ -1,5 +1,4 @@
 #include "curl-async-executor/HttpRequest.hpp"
-
 #include <iostream>
 namespace curl_async_executor
 {
