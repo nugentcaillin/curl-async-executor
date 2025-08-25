@@ -1,8 +1,23 @@
 #include <gtest/gtest.h>
 #include <curl-async-executor/HttpRequest.hpp>
 #include <curl/curl.h>
+#include <iostream>
 
 #include <iostream>
+
+class CurlEnvironment : public ::testing::Environment {
+public:
+    ~CurlEnvironment() override {};
+    void SetUp() override {
+        std::cout << "=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>in global setup\n";
+    };
+    void TearDown() override {
+        std::cout << "=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>=>in global teardown\n";
+    };
+};
+
+testing::Environment* const env = testing::AddGlobalTestEnvironment(new CurlEnvironment);
+
 
 using namespace curl_async_executor;
 
