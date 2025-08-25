@@ -16,6 +16,7 @@ enum HttpMethod
     POST
 };
 
+// Class to represent a Http request given to HttpExecutor to complete
 // owns Curl handle, constructed with builder, move only so executor can take control of lifecycle of handle
 class HttpRequest
 {

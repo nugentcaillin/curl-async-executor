@@ -24,6 +24,8 @@ target_sources(curl_tests
     PRIVATE
         HttpRequestTest.cpp
         Environment.cpp
+        HttpResponseAwaitableTest.cpp
+        HttpResponseTest.cpp
 )
 
 target_link_libraries(curl_tests

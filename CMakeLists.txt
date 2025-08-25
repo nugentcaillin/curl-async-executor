@@ -62,6 +62,12 @@ target_include_directories(${PROJECT_NAME}
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
+# add compile definitions for testing builds
+if(BUILD_TESTS)
+    add_compile_definitions(BUILD_TESTS)
+endif()
+
+
 target_sources(${PROJECT_NAME}
     PRIVATE
     src/HttpExecutor.cpp
@@ -72,6 +78,7 @@ target_sources(${PROJECT_NAME}
 # handle tests/examples
 
 if (BUILD_TESTS)
+
     add_subdirectory(tests)
 endif()
 if(BUILD_EXAMPLES)
