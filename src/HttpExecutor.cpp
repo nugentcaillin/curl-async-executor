@@ -21,11 +21,13 @@ HttpExecutor::HttpResponseAwaitable HttpExecutor::await_async(HttpRequest reques
 
 
 void HttpExecutor::queue_request(std::coroutine_handle<> handle, HttpRequest request, HttpResponseAwaitable* awaitable)
-{
-    (void)handle;
-    (void)request;
-    (void)awaitable;
-
+{   
+    {
+        std::lock_guard<std::mutex> lk(mu_);  
+        std::tuple<HttpRequest, std::coroutine_handle<>, HttpResponseAwaitable*> request_tuple { std::move(request), handle, awaitable };
+        request_queue_.emplace(std::move(request_tuple));
+    }  
+    cv_.notify_one();
 }
 
 void HttpExecutor::worker_loop()
@@ -55,12 +57,22 @@ void HttpExecutor::worker_loop()
         // have reached curl's suggested timeout
         {
             std::unique_lock<std::mutex> lk(mu_);
-            cv_.wait(lk, [this, wait_until, thread_request_count]()
-            { 
-                return stop_requested_
-                    || (thread_request_count > 0 && std::chrono::system_clock::now() > wait_until)
-                    || (request_queue_.size() > 0 && easy_handle_count_.load() < max_easy_handles_);
-            });
+            // if we have no requests, no need to follow curl's suggested wait time
+            if (thread_request_count == 0)
+            {
+                cv_.wait(lk, [this, thread_request_count]()
+                {
+                    return stop_requested_
+                        || (request_queue_.size() > 1 && easy_handle_count_.load() < max_easy_handles_);
+                });
+            } else 
+            {
+                cv_.wait_until(lk, wait_until, [this]()
+                {
+                    return stop_requested_
+                        || (request_queue_.size() > 1 && easy_handle_count_.load() < max_easy_handles_);
+                });
+            }
 
             // only exit loop when queue and current requests dealt with
             if (stop_requested_ && thread_request_count == 0 && request_queue_.size() == 0) break;
@@ -115,6 +127,11 @@ void HttpExecutor::worker_loop()
 
                     finished_awaitable->response_ = std::move(res);
                     finished_continuation.resume();
+                    {
+                        std::lock_guard<std::mutex> lk(mu_);  
+                        thread_request_count--;
+                        easy_handle_count_.fetch_sub(1);
+                    }
                 }
             } while (m);
         }
