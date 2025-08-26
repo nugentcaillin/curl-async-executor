@@ -10,6 +10,9 @@ class HttpRequestTest;
 namespace curl_async_executor
 {
 
+
+
+
 enum HttpMethod
 {
     GET,
@@ -34,6 +37,7 @@ public:
         std::swap(handle_, other.handle_);
         std::swap(headers_, other.headers_);
         std::swap(body_, other.body_);
+        std::swap(body_data_, other.body_data_);
     }
 
     HttpRequest& operator=(HttpRequest&& other)
@@ -44,10 +48,12 @@ public:
         headers_ = nullptr;
         handle_ = nullptr;
         body_ = "";
+        body_data_ = "";
 
         std::swap(headers_, other.headers_);
         std::swap(handle_, other.handle_);
         std::swap(body_, other.body_);
+        std::swap(body_data_, other.body_data_);
 
         return *this;
     }
@@ -57,18 +63,35 @@ public:
         if (handle_) curl_easy_cleanup(handle_);
     }
 
+    // internal use only, do not call curl_easy_cleanup on handle
+    CURL* get_handle() const 
+    {
+        return handle_;
+    }
+
+    // internal use only, used to get body data out of completed request
+    std::string get_body_data()
+    {
+        return std::move(body_data_);
+    }
+
 private:
     CURL* handle_;
     struct curl_slist *headers_;
     std::string body_;
 
+    // body to be written to by curl
+    std::string body_data_;
+
     HttpRequest()
     : handle_(curl_easy_init())
     , headers_(nullptr)
     , body_()
+    , body_data_()
     {
         if (!handle_) throw std::runtime_error("Unable to create curl easy handle"); 
     };
+    static size_t curl_body_write_callback(char *data, size_t size, size_t nmemb, void *clientp);
 };
 
 class HttpRequestBuilder

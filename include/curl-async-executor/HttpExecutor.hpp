@@ -7,6 +7,9 @@
 #include <mutex>
 #include <curl/curl.h>
 #include <coroutine>
+#include <condition_variable>
+#include <atomic>
+#include <map>
 
 namespace curl_async_executor
 {
@@ -17,19 +20,17 @@ class HttpExecutor
 public:
     struct HttpResponseAwaitable;
 
-    // needs to be defined for unit tests of awaitable to work
-    HttpExecutor(int max_concurrent_requests, int num_threads)
-    {
-        (void)max_concurrent_requests;
-        (void)num_threads;
-    }
+    HttpExecutor(int max_concurrent_requests, int num_threads);
     HttpResponseAwaitable await_async(HttpRequest request);
 private:
-    std::queue<HttpRequest> request_queue;
-    std::mutex mu;
-    CURLM* multi_handle;
-    int easy_handle_count;
+    int max_easy_handles_;
+    std::atomic<int> easy_handle_count_;
+    bool stop_requested_;
+    std::queue<std::tuple<HttpRequest, std::coroutine_handle<>, HttpResponseAwaitable*>> request_queue_;
+    std::mutex mu_;
+    std::condition_variable cv_;
     void queue_request(std::coroutine_handle<> handle, HttpRequest request, HttpResponseAwaitable* awaitable);
+    void worker_loop();
 };
 
 

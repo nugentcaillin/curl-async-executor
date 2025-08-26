@@ -47,7 +47,18 @@ HttpRequest HttpRequestBuilder::build() &&
         curl_easy_setopt(request_.handle_, CURLOPT_POSTFIELDSIZE, request_.body_.length());
         break;
     }
+
+    // handle body writing
+    curl_easy_setopt(request_.handle_, CURLOPT_WRITEFUNCTION, HttpRequest::curl_body_write_callback);
+    curl_easy_setopt(request_.handle_, CURLOPT_WRITEDATA, &request_.body_data_);
+
     return std::move(request_);
+}
+size_t HttpRequest::curl_body_write_callback(char *data, size_t size, size_t nmemb, void *clientp)
+{
+    std::string body_data = *(std::string*)clientp;
+    if (nmemb > 0) body_data += data;
+    return size * nmemb;
 }
 
 } 
