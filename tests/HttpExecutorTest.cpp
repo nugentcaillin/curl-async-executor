@@ -110,8 +110,10 @@ TEST_F(HttpExecutorTest, validRequestHasNonNullBody)
     std::future<HttpResponse> completion_future { completion_promise.get_future() };
     HttpExecutor exec(1, 1);
     auto coro = simple_request(exec, std::move(completion_promise), "http://localhost:8080/");
+    
 
     completion_future.wait_for(std::chrono::seconds(5));
+
 
     HttpResponse res = completion_future.get();
     EXPECT_TRUE(res.get_body().length() > 1);
@@ -152,7 +154,6 @@ TEST_F(HttpExecutorTest, multipleRequestsWorkCorrectlyOneAtATime)
     std::future<HttpResponse> completion_future3 { completion_promise3.get_future() };
     auto coro3 = simple_request(exec, std::move(completion_promise3), "http://localhost:8080/");
 
-    
 
     completion_future1.wait_for(std::chrono::seconds(5));
     completion_future2.wait_for(std::chrono::seconds(5));
@@ -232,7 +233,6 @@ TEST_F(HttpExecutorTest, multipleCoroutinesAwaitingMultipleRequests)
     std::future<bool> completion_future3 { completion_promise3.get_future() };
     auto coro3 = complex_request(exec, std::move(completion_promise3), "http://localhost:8080/");
 
-    
 
     completion_future1.wait_for(std::chrono::seconds(5));
     completion_future2.wait_for(std::chrono::seconds(5));
@@ -246,15 +246,14 @@ TEST_F(HttpExecutorTest, multipleCoroutinesAwaitingMultipleRequests)
 
     res = completion_future3.get();
     EXPECT_EQ(res, true);
-
 }
 
 // stress test with multiple coroutines queueing multiple requests doesn't cause leaks
 
 TEST_F(HttpExecutorTest, manyCoroutinesWithMultipleRequests)
 {
-    int num_complex_coroutines { 1000 };
-    HttpExecutor exec(100, 1);
+    int num_complex_coroutines { 5000 };
+    HttpExecutor exec(1000, 1);
     std::vector<std::future<void>> completion_futures;
     std::vector<HttpExecutorTestCoro> coros;
     for (int i { 0 }; i < num_complex_coroutines; ++i)
