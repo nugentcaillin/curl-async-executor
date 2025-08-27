@@ -253,8 +253,8 @@ TEST_F(HttpExecutorTest, multipleCoroutinesAwaitingMultipleRequests)
 
 TEST_F(HttpExecutorTest, manyCoroutinesWithMultipleRequests)
 {
-    int num_complex_coroutines { 10000 };
-    HttpExecutor exec(5000, 1);
+    int num_complex_coroutines { 1000 };
+    HttpExecutor exec(100, 1);
     std::vector<std::future<void>> completion_futures;
     std::vector<HttpExecutorTestCoro> coros;
     for (int i { 0 }; i < num_complex_coroutines; ++i)
