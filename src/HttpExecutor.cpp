@@ -63,16 +63,23 @@ void HttpExecutor::worker_loop()
     while (true)
     {
         // get reccomended duration to wait from curl, and change to timepoint
+        // this is just the max timeout to wait for reads and can be very large, so cap it to some sensible max
+        // other curl functions for waiting block the thread so this is a good compromise since we still get to immediately
+        // proceed if the timeout is zero.
         long suggested_timeout;
+
+
         status_m = curl_multi_timeout(multi, &suggested_timeout);
+        suggested_timeout = std::min(suggested_timeout, (long)10);
         if (status_m != CURLM_OK) throw std::runtime_error("curl_multi_timeout did not return CURLE_OK");
         std::chrono::time_point wait_until { std::chrono::system_clock::now() + std::chrono::milliseconds(suggested_timeout) };
         
-        // wait until stop requested, request queued, or if this thread is processing a request and we
-        // have reached curl's suggested timeout
+        
+        // wait until stop requested, request queued, or if this thread is processing a request wait at most 10 milliseconds
+        // or however long curl suggested for socket actions, whichever is smaller
         {
             std::unique_lock<std::mutex> lk(mu_);
-            // if we have no requests, no need to follow curl's suggested wait time
+            // if we have no requests, no need to "poll" requests, can just wait on stop / request queuing 
             if (thread_request_count == 0)
             {
                 cv_.wait(lk, [this, thread_request_count]()
@@ -82,7 +89,7 @@ void HttpExecutor::worker_loop()
                 });
             } else 
             {
-                cv_.wait_until(lk, wait_until, [this]()
+                cv_.wait_until(lk, wait_until, [this, thread_request_count]()
                 {
                     return stop_requested_
                         || (request_queue_.size() > 0 && easy_handle_count_.load() < max_easy_handles_);
@@ -117,9 +124,8 @@ void HttpExecutor::worker_loop()
             inflight_requests_.insert({request_handle, std::move(inflight_request)});
         }
 
-
         // deal with finished requests
-        if (thread_request_count > 0 && std::chrono::system_clock::now() > wait_until)
+        if (thread_request_count > 0)
         {
             int msg_count;
             curl_multi_perform(multi, &msg_count);

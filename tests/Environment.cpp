@@ -3,7 +3,7 @@
 #include <curl/curl.h>
 
 
-
+/*
 
 class CurlEnvironment : public ::testing::Environment {
 public:
@@ -21,3 +21,4 @@ public:
 
 testing::Environment* const env = testing::AddGlobalTestEnvironment(new CurlEnvironment);
 
+*/
