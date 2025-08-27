@@ -1,6 +1,7 @@
 #include "curl-async-executor/HttpExecutor.hpp"
 #include <stdexcept>
 #include <coroutine>
+#include <iostream>
 
 namespace curl_async_executor
 {
@@ -12,7 +13,20 @@ HttpExecutor::HttpExecutor(int max_concurrent_requests, int num_threads)
 , stop_requested_(false)
 {
     (void)num_threads;
+    worker_thread_ = std::thread([this]() { worker_loop(); });
 }
+
+HttpExecutor::~HttpExecutor()
+{
+
+    {
+        std::lock_guard<std::mutex> lk(mu_);
+        stop_requested_ = true;
+    }
+    cv_.notify_all();
+    worker_thread_.join();
+}
+
 
 HttpExecutor::HttpResponseAwaitable HttpExecutor::await_async(HttpRequest request)
 {
@@ -45,6 +59,7 @@ void HttpExecutor::worker_loop()
     HttpResponseAwaitable* awaitable;
     std::map<CURL*, std::tuple<std::coroutine_handle<>, HttpRequest, HttpResponseAwaitable*>> inflight_requests_;
 
+
     while (true)
     {
         // get reccomended duration to wait from curl, and change to timepoint
@@ -63,14 +78,14 @@ void HttpExecutor::worker_loop()
                 cv_.wait(lk, [this, thread_request_count]()
                 {
                     return stop_requested_
-                        || (request_queue_.size() > 1 && easy_handle_count_.load() < max_easy_handles_);
+                        || (request_queue_.size() > 0 && easy_handle_count_.load() < max_easy_handles_);
                 });
             } else 
             {
                 cv_.wait_until(lk, wait_until, [this]()
                 {
                     return stop_requested_
-                        || (request_queue_.size() > 1 && easy_handle_count_.load() < max_easy_handles_);
+                        || (request_queue_.size() > 0 && easy_handle_count_.load() < max_easy_handles_);
                 });
             }
 
@@ -94,12 +109,14 @@ void HttpExecutor::worker_loop()
         // enrol request
         if (request_captured)
         {
-            status_m = curl_multi_add_handle(multi, request.get_handle());
+            CURL* request_handle = request.get_handle();
+            status_m = curl_multi_add_handle(multi, request_handle);
             if (status_m != CURLM_OK) throw std::runtime_error("Error adding curl_easy_handle to multi_handle");
 
             std::tuple<std::coroutine_handle<>, HttpRequest, HttpResponseAwaitable*> inflight_request { continuation_handle, std::move(request), awaitable };
-            inflight_requests_.emplace(request.get_handle(), std::move(inflight_request));
+            inflight_requests_.insert({request_handle, std::move(inflight_request)});
         }
+
 
         // deal with finished requests
         if (thread_request_count > 0 && std::chrono::system_clock::now() > wait_until)
@@ -107,37 +124,42 @@ void HttpExecutor::worker_loop()
             int msg_count;
             curl_multi_perform(multi, &msg_count);
             struct CURLMsg *m;
-            do {
 
-                m = curl_multi_info_read(multi, &msg_count);
-                long int http_status {};
-                int curl_status { m->msg };
+            do 
+            {
+                int msgq = 0;
+                m = curl_multi_info_read(multi, &msgq);
                 if (m && (m->msg == CURLMSG_DONE))
                 {
-                    // extract data from request, construct response, give to awaitable and resume coroutine
-                    CURL *easy_handle = m->easy_handle;
-                    auto it = inflight_requests_.find(easy_handle);
-                    curl_easy_getinfo(easy_handle, CURLINFO_RESPONSE_CODE, &http_status);
-                    
-                    HttpRequest finished_request = std::move(std::get<1>(it->second));
-                    std::coroutine_handle<> finished_continuation = std::get<0>(it->second);
-                    HttpResponseAwaitable* finished_awaitable = std::get<2>(it->second);
+                    // construct HttpResponse and resume coroutine
+                    thread_request_count--;
+                    easy_handle_count_.fetch_sub(1);
+                    CURL* e = m->easy_handle;
+                    curl_multi_remove_handle(multi, e);
+                    auto it = inflight_requests_.find(e);
 
-                    HttpResponse res(finished_request.get_body_data(), http_status, curl_status);
+                    std::coroutine_handle<> to_resume = std::get<0>(it->second);
+                    HttpRequest req = std::move(std::get<1>(it->second));
+                    HttpResponseAwaitable* to_return = std::get<2>(it->second);
 
-                    finished_awaitable->response_ = std::move(res);
-                    finished_continuation.resume();
-                    {
-                        std::lock_guard<std::mutex> lk(mu_);  
-                        thread_request_count--;
-                        easy_handle_count_.fetch_sub(1);
-                    }
+                    long http_status {};
+                    curl_easy_getinfo(e, CURLINFO_RESPONSE_CODE, &http_status);
+
+                    HttpResponse res(req.get_body_data(), http_status, m->data.result);
+                    to_return->response_ = std::move(res);
+
+                    to_resume.resume();
+
+
+                    inflight_requests_.erase(it);
                 }
             } while (m);
+
         }
 
         request_captured = false;
     }
+    curl_multi_cleanup(multi);
 }
 
 

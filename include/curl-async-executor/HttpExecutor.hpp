@@ -10,6 +10,7 @@
 #include <condition_variable>
 #include <atomic>
 #include <map>
+#include <thread>
 
 namespace curl_async_executor
 {
@@ -21,6 +22,7 @@ public:
     struct HttpResponseAwaitable;
 
     HttpExecutor(int max_concurrent_requests, int num_threads);
+    ~HttpExecutor();
     HttpResponseAwaitable await_async(HttpRequest request);
 private:
     int max_easy_handles_;
@@ -31,6 +33,7 @@ private:
     std::condition_variable cv_;
     void queue_request(std::coroutine_handle<> handle, HttpRequest request, HttpResponseAwaitable* awaitable);
     void worker_loop();
+    std::thread worker_thread_;
 };
 
 

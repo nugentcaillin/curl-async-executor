@@ -12,7 +12,6 @@ namespace curl_async_executor
 
 
 
-
 enum HttpMethod
 {
     GET,
@@ -33,11 +32,12 @@ public:
     : handle_(nullptr)
     , headers_(nullptr)
     , body_()
+    , curl_body_data_(nullptr)
     {
         std::swap(handle_, other.handle_);
         std::swap(headers_, other.headers_);
         std::swap(body_, other.body_);
-        std::swap(body_data_, other.body_data_);
+        std::swap(curl_body_data_, other.curl_body_data_);
     }
 
     HttpRequest& operator=(HttpRequest&& other)
@@ -45,15 +45,16 @@ public:
         if (&other == this) return *this;
         if (headers_) curl_slist_free_all(headers_);
         if (handle_) curl_easy_cleanup(handle_);
+        if (curl_body_data_) delete curl_body_data_;
         headers_ = nullptr;
         handle_ = nullptr;
         body_ = "";
-        body_data_ = "";
+        curl_body_data_ = nullptr;
 
         std::swap(headers_, other.headers_);
         std::swap(handle_, other.handle_);
         std::swap(body_, other.body_);
-        std::swap(body_data_, other.body_data_);
+        std::swap(curl_body_data_, other.curl_body_data_);
 
         return *this;
     }
@@ -61,6 +62,7 @@ public:
     {
         if (headers_) curl_slist_free_all(headers_);
         if (handle_) curl_easy_cleanup(handle_);
+        delete curl_body_data_;
     }
 
     // internal use only, do not call curl_easy_cleanup on handle
@@ -72,22 +74,24 @@ public:
     // internal use only, used to get body data out of completed request
     std::string get_body_data()
     {
-        return std::move(body_data_);
+        return *curl_body_data_;
     }
 
 private:
+
+
     CURL* handle_;
     struct curl_slist *headers_;
     std::string body_;
 
     // body to be written to by curl
-    std::string body_data_;
+    std::string *curl_body_data_;
 
     HttpRequest()
     : handle_(curl_easy_init())
     , headers_(nullptr)
     , body_()
-    , body_data_()
+    , curl_body_data_(new std::string())
     {
         if (!handle_) throw std::runtime_error("Unable to create curl easy handle"); 
     };
